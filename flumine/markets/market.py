@@ -36,7 +36,10 @@ class Market:
         self.update_market_catalogue = True
         self.orders_cleared = False
         self.market_cleared = False
-        self.context = {"simulated": {}}  # data store (raceCard / scores etc)
+        self.context = {
+            "simulated": {},
+            "delayed_orders": [],
+        }  # data store (raceCard / scores etc)
         self.blotter = Blotter(market_id)
         self._transaction_id = 0
 
@@ -207,3 +210,7 @@ class Market:
             "market_cleared": self.market_cleared,
             "closed": self.closed,
         }
+
+    @property
+    def delayed_orders(self) -> list:
+        return self.context["delayed_orders"]

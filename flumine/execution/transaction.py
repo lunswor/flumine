@@ -1,9 +1,10 @@
+import datetime
 import logging
 from collections import defaultdict
 
-from ..order.orderpackage import OrderPackageType, BetfairOrderPackage
 from ..events import events
 from ..exceptions import ControlError, OrderError
+from ..order.orderpackage import OrderPackageType, BetfairOrderPackage
 from ..utils import chunks, get_market_notes
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,12 @@ class Transaction:
         market_version: int = None,
         execute: bool = True,
         force: bool = False,
+        delay: float = 0,
     ) -> bool:
+        if delay:
+            order.context["delay"] = delay
+            self.market.delayed_orders.append(order)
+            return True
         if (
             execute
             and not force
@@ -119,8 +125,17 @@ class Transaction:
         self._pending_orders = True
         return True
 
+    def check_delayed_orders(self):
+        for order in self.market.delayed_orders:
+            if (
+                datetime.datetime.utcnow() - order.date_time_created
+            ).total_seconds() >= order.notes["delay"]:
+                self.place_order(order)
+
     def execute(self) -> int:
         packages = []
+        if self.market.delayed_orders:
+            self.check_delayed_orders()
         if self._pending_place:
             packages += self._create_order_package(
                 self._pending_place,

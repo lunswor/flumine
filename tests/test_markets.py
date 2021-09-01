@@ -117,7 +117,7 @@ class MarketTest(unittest.TestCase):
         self.assertTrue(self.market.update_market_catalogue)
         self.assertFalse(self.market.orders_cleared)
         self.assertFalse(self.market.market_cleared)
-        self.assertEqual(self.market.context, {"simulated": {}})
+        self.assertEqual(self.market.context, {"simulated": {}, "delayed_orders": []})
         self.assertIsNotNone(self.market.blotter)
         self.assertEqual(self.market._transaction_id, 0)
 

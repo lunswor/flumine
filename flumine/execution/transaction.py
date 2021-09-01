@@ -131,6 +131,7 @@ class Transaction:
                 datetime.datetime.utcnow() - order.date_time_created
             ).total_seconds() >= order.notes["delay"]:
                 self.place_order(order)
+                self.market.delayed_orders.remove(order)
 
     def execute(self) -> int:
         packages = []

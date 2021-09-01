@@ -1,3 +1,4 @@
+import datetime
 import unittest
 from unittest import mock
 from unittest.mock import call
@@ -127,6 +128,13 @@ class TransactionTest(unittest.TestCase):
         self.transaction._pending_place = [(mock_order, None)]
         self.assertTrue(self.transaction._pending_orders)
 
+    def test_place_order_delay(self):
+        self.mock_market.delayed_orders = []
+        mock_order = mock.Mock(id="123", lookup=(1, 2, 3), context={})
+        self.assertTrue(self.transaction.place_order(mock_order, delay=1.0))
+        self.assertEqual(mock_order.context.get("delay"), 1)
+        self.assertEqual(self.mock_market.delayed_orders, [mock_order])
+
     @mock.patch(
         "flumine.execution.transaction.Transaction._validate_controls",
         return_value=True,
@@ -236,11 +244,31 @@ class TransactionTest(unittest.TestCase):
         self.transaction._pending_replace = [(mock_order, None)]
         self.assertTrue(self.transaction._pending_orders)
 
+    @mock.patch("flumine.execution.transaction.Transaction.place_order")
+    def test_check_delayed_orders(self, mock_place_order):
+        mock_order = mock.Mock(
+            id="123",
+            date_time_created=datetime.datetime.utcnow(),
+            lookup=(1, 2, 3),
+            notes={"delay": 1},
+        )
+        self.mock_market.delayed_orders = [mock_order]
+        self.transaction.check_delayed_orders()
+        self.assertEqual(self.mock_market.delayed_orders, [mock_order])
+        mock_place_order.assert_not_called()
+        mock_order.date_time_created = datetime.datetime.utcnow() - datetime.timedelta(
+            seconds=1.2
+        )
+        self.transaction.check_delayed_orders()
+        self.assertEqual(self.mock_market.delayed_orders, [])
+        mock_place_order.assert_called_with(mock_order)
+
     @mock.patch("flumine.execution.transaction.Transaction._create_order_package")
     def test_execute(self, mock__create_order_package):
         self.transaction._pending_orders = True
         mock_package = mock.Mock()
         mock__create_order_package.return_value = [mock_package]
+        self.mock_market.delayed_orders = []
         self.assertEqual(self.transaction.execute(), 0)
         mock_order = mock.Mock()
         self.transaction._pending_place = [(mock_order, 1234)]
@@ -272,6 +300,7 @@ class TransactionTest(unittest.TestCase):
         self.transaction._async_place_orders = True
         mock_package = mock.Mock()
         mock__create_order_package.return_value = [mock_package]
+        self.mock_market.delayed_orders = []
         self.assertEqual(self.transaction.execute(), 0)
         mock_order = mock.Mock()
         self.transaction._pending_place = [(mock_order, 1234)]
@@ -296,6 +325,16 @@ class TransactionTest(unittest.TestCase):
             ]
         )
         self.assertFalse(self.transaction._pending_orders)
+
+    @mock.patch("flumine.execution.transaction.Transaction.check_delayed_orders")
+    def test_execute_delayed_called(self, mock_check_delayed_orders):
+        self.mock_market.delayed_orders = []
+        self.assertEqual(self.transaction.execute(), 0)
+        mock_check_delayed_orders.assert_not_called()
+        mock_order = mock.Mock(id="123")
+        self.mock_market.delayed_orders = [mock_order]
+        self.transaction.execute()
+        mock_check_delayed_orders.assert_called()
 
     def test__validate_controls(self):
         mock_trading_control = mock.Mock()

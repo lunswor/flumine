@@ -130,9 +130,9 @@ class TransactionTest(unittest.TestCase):
 
     def test_place_order_delay(self):
         self.mock_market.delayed_orders = []
-        mock_order = mock.Mock(id="123", lookup=(1, 2, 3), context={})
+        mock_order = mock.Mock(id="123", lookup=(1, 2, 3), notes={})
         self.assertTrue(self.transaction.place_order(mock_order, delay=1.0))
-        self.assertEqual(mock_order.context.get("delay"), 1)
+        self.assertEqual(mock_order.notes.get("delay"), 1)
         self.assertEqual(self.mock_market.delayed_orders, [mock_order])
 
     @mock.patch(

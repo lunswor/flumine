@@ -50,7 +50,7 @@ class Transaction:
         delay: float = 0,
     ) -> bool:
         if delay:
-            order.context["delay"] = delay
+            order.notes["delay"] = delay
             self.market.delayed_orders.append(order)
             return True
         if (
